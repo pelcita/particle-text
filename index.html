@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ParticleText — Live Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #EFA818;
+    --orange: #F48225;
+    --sky: #88BEC5;
+    --deep-orange: #DE7C30;
+    --cream: #FFF9ED;
+    --bg: #060606;
+    --surface: #111;
+    --border: rgba(255,255,255,0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
+    cursor: none;
+  }
+
+  /* Custom cursor */
+  #cursor {
+    position: fixed;
+    width: 20px; height: 20px;
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: width 0.15s, height 0.15s, border-color 0.15s;
+    mix-blend-mode: difference;
+  }
+  #cursor.push {
+    width: 60px; height: 60px;
+    border-color: var(--orange);
+  }
+
+  /* Canvas */
+  #canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+  }
+
+  /* UI Layer */
+  #ui {
+    position: fixed;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+  }
+
+  /* Top bar */
+  #topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    pointer-events: none;
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--gold); }
+
+  .badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 2px;
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+
+  /* Bottom control zone */
+  #controls {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 0 32px 32px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  /* Input area */
+  .input-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+    pointer-events: all;
+  }
+
+  .input-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.25);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  #textInput {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    letter-spacing: 1px;
+  }
+  #textInput::placeholder { color: rgba(255,255,255,0.15); }
+  #textInput:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(239,168,24,0.1), 0 0 30px rgba(239,168,24,0.05);
+  }
+
+  .char-count {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.2);
+  }
+
+  /* Preset buttons */
+  .presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    pointer-events: all;
+  }
+
+  .preset-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #000;
+    transform: translateY(-2px);
+  }
+
+  /* Mode buttons */
+  .modes {
+    display: flex;
+    gap: 8px;
+    pointer-events: all;
+  }
+
+  .mode-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.3);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .mode-btn.active {
+    background: rgba(239,168,24,0.15);
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  /* Stats */
+  #stats {
+    position: fixed;
+    top: 70px;
+    right: 32px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .stat {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.2);
+    text-align: right;
+  }
+  .stat span { color: var(--sky); }
+
+  /* hint */
+  #hint {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+  #hint.hidden { opacity: 0; }
+  #hint h2 {
+    font-size: 13px;
+    letter-spacing: 4px;
+    color: rgba(255,255,255,0.15);
+    text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 50;
+  }
+
+  @media (max-width: 600px) {
+    #controls { padding: 0 16px 24px; }
+    #textInput { font-size: 16px; }
+    #topbar { padding: 16px; }
+    #stats { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<canvas id="canvas"></canvas>
+
+<div id="hint">
+  <h2>← Type below to begin →</h2>
+</div>
+
+<div id="ui">
+  <div id="topbar">
+    <div class="logo">Particle<span>Text</span>.js</div>
+    <div class="badge">INTERACTIVE DEMO</div>
+  </div>
+</div>
+
+<div id="stats">
+  <div class="stat">particles: <span id="pCount">0</span></div>
+  <div class="stat">fps: <span id="fps">0</span></div>
+  <div class="stat">mode: <span id="modeLabel">REPEL</span></div>
+</div>
+
+<div id="controls">
+  <div class="modes">
+    <button class="mode-btn active" onclick="setMode('repel')">⊘ REPEL</button>
+    <button class="mode-btn" onclick="setMode('attract')">⊕ ATTRACT</button>
+    <button class="mode-btn" onclick="setMode('vortex')">↻ VORTEX</button>
+    <button class="mode-btn" onclick="explode()">✦ EXPLODE</button>
+  </div>
+
+  <div class="input-wrapper">
+    <div class="input-label">// type anything</div>
+    <input
+      type="text"
+      id="textInput"
+      maxlength="20"
+      placeholder="@miss.agent.c"
+      autocomplete="off"
+      spellcheck="false"
+    >
+    <span class="char-count" id="charCount">0/20</span>
+  </div>
+
+  <div class="presets">
+    <button class="preset-btn" onclick="applyPreset('@miss.agent.c')">@miss.agent.c</button>
+    <button class="preset-btn" onclick="applyPreset('KI AGENT')">KI AGENT</button>
+    <button class="preset-btn" onclick="applyPreset('CLAUDE')">CLAUDE</button>
+    <button class="preset-btn" onclick="applyPreset('n8n FLOW')">n8n FLOW</button>
+    <button class="preset-btn" onclick="applyPreset('AI')">AI</button>
+    <button class="preset-btn" onclick="applyPreset('HELLO')">HELLO</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const input = document.getElementById('textInput');
+const cursor = document.getElementById('cursor');
+const hint = document.getElementById('hint');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Brand palette
+const PALETTE = [
+  '#EFA818','#F48225','#88BEC5','#DE7C30',
+  '#A4CCCE','#FFFFFF','#EFA818','#F48225'
+];
+
+// State
+let particles = [];
+let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+let mode = 'repel';
+let targetText = '';
+let frameCount = 0;
+let lastFpsTime = performance.now();
+let currentFps = 0;
+let rafId;
+let debounceTimer;
+let hasTyped = false;
+
+// ─── Particle ────────────────────────────────────────────────────
+class Particle {
+  constructor(tx, ty, color) {
+    // Spawn from edges
+    const edge = Math.random() < 0.5;
+    this.x = edge ? (Math.random() < 0.5 ? -20 : canvas.width + 20)
+                  : Math.random() * canvas.width;
+    this.y = edge ? Math.random() * canvas.height
+                  : (Math.random() < 0.5 ? -20 : canvas.height + 20);
+    this.targetX = tx;
+    this.targetY = ty;
+    this.explodeX = tx;
+    this.explodeY = ty;
+    this.color = color;
+    this.size = Math.random() * 2.4 + 1;
+    this.vx = 0;
+    this.vy = 0;
+    this.ease = 0.055 + Math.random() * 0.05;
+    this.friction = 0.84;
+    this.alpha = 0;
+    this.alphaSpeed = 0.02 + Math.random() * 0.03;
+    this.exploded = false;
+    // For vortex
+    this.angle = Math.random() * Math.PI * 2;
+    this.orbitRadius = 0;
+  }
+
+  update() {
+    const dx = mouse.x - this.x;
+    const dy = mouse.y - this.y;
+    const distSq = dx * dx + dy * dy;
+    const dist = Math.sqrt(distSq);
+
+    if (mode === 'repel') {
+      const r = 100;
+      if (dist < r && dist > 0) {
+        const f = ((r - dist) / r) * 9;
+        this.vx -= (dx / dist) * f;
+        this.vy -= (dy / dist) * f;
+      }
+    } else if (mode === 'attract') {
+      const r = 140;
+      if (dist < r && dist > 0) {
+        const f = ((r - dist) / r) * 4;
+        this.vx += (dx / dist) * f;
+        this.vy += (dy / dist) * f;
+      }
+    } else if (mode === 'vortex') {
+      const r = 160;
+      if (dist < r && dist > 0) {
+        const f = ((r - dist) / r) * 5;
+        // Perpendicular force (tangent)
+        this.vx += (-dy / dist) * f * 0.5;
+        this.vy += (dx / dist) * f * 0.5;
+        // Slight pull inward
+        this.vx += (dx / dist) * f * 0.1;
+        this.vy += (dy / dist) * f * 0.1;
+      }
+    }
+
+    // Spring back to target
+    const tx = this.exploded ? this.explodeX : this.targetX;
+    const ty = this.exploded ? this.explodeY : this.targetY;
+    this.vx += (tx - this.x) * this.ease;
+    this.vy += (ty - this.y) * this.ease;
+    this.vx *= this.friction;
+    this.vy *= this.friction;
+    this.x += this.vx;
+    this.y += this.vy;
+
+    this.alpha = Math.min(1, this.alpha + this.alphaSpeed);
+  }
+
+  draw() {
+    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    const stretched = Math.min(speed * 0.6, 4);
+
+    ctx.save();
+    ctx.globalAlpha = this.alpha * 0.92;
+
+    if (stretched > 1) {
+      // Motion blur: elongate in direction of travel
+      ctx.translate(this.x, this.y);
+      ctx.rotate(Math.atan2(this.vy, this.vx));
+      ctx.fillStyle = this.color;
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, this.size + stretched, this.size * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = this.color;
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  scatter() {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 200 + Math.random() * 400;
+    this.explodeX = canvas.width / 2 + Math.cos(angle) * dist;
+    this.explodeY = canvas.height / 2 + Math.sin(angle) * dist;
+    this.exploded = true;
+  }
+
+  reform() {
+    this.exploded = false;
+  }
+}
+
+// ─── Text → Pixels ────────────────────────────────────────────────
+function getPixels(text) {
+  if (!text.trim()) return [];
+
+  const off = document.createElement('canvas');
+  off.width = canvas.width;
+  off.height = canvas.height;
+  const octx = off.getContext('2d');
+
+  const len = text.length;
+  let fs = Math.floor(canvas.width / (len * 0.58));
+  fs = Math.max(40, Math.min(fs, 200));
+  if (len <= 3) fs = Math.min(fs, 240);
+
+  octx.font = `800 ${fs}px 'Syne', sans-serif`;
+  octx.textAlign = 'center';
+  octx.textBaseline = 'middle';
+  octx.fillStyle = '#fff';
+  octx.fillText(text, off.width / 2, off.height / 2);
+
+  const data = octx.getImageData(0, 0, off.width, off.height).data;
+  const pts = [];
+  const gap = 5;
+
+  for (let y = 0; y < off.height; y += gap) {
+    for (let x = 0; x < off.width; x += gap) {
+      if (data[(y * off.width + x) * 4 + 3] > 120) {
+        pts.push({ x, y });
+      }
+    }
+  }
+  return pts;
+}
+
+// ─── Build / Update Particles ─────────────────────────────────────
+function buildParticles(text) {
+  const pts = getPixels(text);
+
+  // Shuffle for organic entry
+  for (let i = pts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pts[i], pts[j]] = [pts[j], pts[i]];
+  }
+
+  // Reuse / trim / grow
+  while (particles.length > pts.length) particles.pop();
+
+  for (let i = 0; i < pts.length; i++) {
+    const color = PALETTE[i % PALETTE.length];
+    if (i < particles.length) {
+      // Update existing
+      particles[i].targetX = pts[i].x;
+      particles[i].targetY = pts[i].y;
+      particles[i].color = color;
+      particles[i].exploded = false;
+    } else {
+      // Add new
+      particles.push(new Particle(pts[i].x, pts[i].y, color));
+    }
+  }
+
+  document.getElementById('pCount').textContent = particles.length;
+}
+
+// ─── Animate ─────────────────────────────────────────────────────
+function animate() {
+  // Trailing fade (motion blur feel)
+  ctx.fillStyle = 'rgba(6,6,6,0.18)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (const p of particles) {
+    p.update();
+    p.draw();
+  }
+
+  // FPS
+  frameCount++;
+  const now = performance.now();
+  if (now - lastFpsTime > 500) {
+    currentFps = Math.round(frameCount / ((now - lastFpsTime) / 1000));
+    frameCount = 0;
+    lastFpsTime = now;
+    document.getElementById('fps').textContent = currentFps;
+  }
+
+  rafId = requestAnimationFrame(animate);
+}
+
+// ─── Interactions ─────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('modeLabel').textContent = m.toUpperCase();
+}
+
+function explode() {
+  const btn = document.querySelector('[onclick="explode()"]');
+  if (particles[0]?.exploded) {
+    particles.forEach(p => p.reform());
+    if (btn) btn.textContent = '✦ EXPLODE';
+  } else {
+    particles.forEach(p => p.scatter());
+    if (btn) btn.textContent = '✦ REFORM';
+  }
+}
+
+function applyPreset(text) {
+  input.value = text;
+  input.dispatchEvent(new Event('input'));
+  document.getElementById('charCount').textContent = `${text.length}/20`;
+}
+
+// ─── Input handling ───────────────────────────────────────────────
+input.addEventListener('input', () => {
+  const val = input.value;
+  document.getElementById('charCount').textContent = `${val.length}/20`;
+
+  if (!hasTyped && val.length > 0) {
+    hasTyped = true;
+    hint.classList.add('hidden');
+  }
+
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    buildParticles(val || '');
+  }, 80);
+});
+
+// Mouse / touch
+document.addEventListener('mousemove', e => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+
+  // Cursor size based on mode
+  if (mode !== 'repel') {
+    cursor.classList.add('push');
+  } else {
+    cursor.classList.remove('push');
+  }
+});
+
+document.addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  mouse.x = t.clientX;
+  mouse.y = t.clientY;
+}, { passive: true });
+
+document.addEventListener('mouseleave', () => {
+  mouse.x = -9999; mouse.y = -9999;
+});
+
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  buildParticles(input.value || '');
+});
+
+// ─── Init ─────────────────────────────────────────────────────────
+buildParticles('@miss.agent.c');
+animate();
+
+// Focus input after load
+setTimeout(() => input.focus(), 300);
+</script>
+</body>
+</html>

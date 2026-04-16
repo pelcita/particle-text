@@ -471,10 +471,15 @@ function getPixels(text) {
   off.height = canvas.height;
   const octx = off.getContext('2d');
 
-  const len = text.length;
-  let fs = Math.floor(canvas.width / (len * 0.58));
-  fs = Math.max(40, Math.min(fs, 200));
-  if (len <= 3) fs = Math.min(fs, 240);
+  const maxWidth = canvas.width * 0.85;
+  let fs = 200;
+
+  octx.font = `800 ${fs}px 'Syne', sans-serif`;
+  let measured = octx.measureText(text).width;
+  if (measured > maxWidth) {
+    fs = Math.floor(fs * (maxWidth / measured));
+  }
+  fs = Math.max(32, Math.min(fs, 200));
 
   octx.font = `800 ${fs}px 'Syne', sans-serif`;
   octx.textAlign = 'center';
